@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+
+sock=$(date +%s%N | sha256sum | base64 | head -c 12)
+read -e -p "Docker Server: " server_ip
+
+ssh -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -NL /tmp/$sock:/var/run/docker.sock spoopyangie@$server_ip >/dev/null 2>&1 &
+
+while [ ! -e /tmp/$sock ];
+do
+    echo "Waiting for Docker Socket ..."
+    sleep 1
+done
+
+chmod 400 /tmp/$sock
+
+xdg-open https://localhost:44570 >/dev/null 2>&1 &
+
+podman run --rm -p 44570:9443 -v portainer-ce-data:/data -v /tmp/$sock:/var/run/docker.sock:ro portainer/portainer-ce
+
+kill %1
+
+rm -f /tmp/$sock
